@@ -3,34 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Session Replayer & Real-Time Error Boundary Dashboard</title>
+  <title>TraceBuffer ⚡ — Real-Time Error Boundary & Session Replayer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-main: #0f172a;
-      --bg-card: #1e293b;
-      --bg-card-hover: #334155;
-      --border-color: #334155;
-      --accent-purple: #818cf8;
-      --accent-pink: #ec4899;
-      --accent-cyan: #06b6d4;
-      --accent-red: #ef4444;
-      --accent-green: #10b981;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
+      --bg-dark: #030712;
+      --bg-panel: rgba(17, 24, 39, 0.75);
+      --bg-panel-solid: #111827;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(99, 102, 241, 0.4);
+      --primary: #6366f1;
+      --primary-glow: #818cf8;
+      --pink: #ec4899;
+      --cyan: #06b6d4;
+      --danger: #f43f5e;
+      --warning: #fbbf24;
+      --success: #10b981;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Outfit', sans-serif;
     }
 
     body {
-      background-color: var(--bg-main);
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
       color: var(--text-main);
       display: flex;
       height: 100vh;
@@ -39,262 +46,446 @@
 
     /* Sidebar */
     .sidebar {
-      width: 320px;
-      background: var(--bg-card);
-      border-right: 1px solid var(--border-color);
+      width: 340px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
+      z-index: 10;
     }
 
-    .sidebar-header {
-      padding: 20px;
-      border-bottom: 1px solid var(--border-color);
+    .brand-header {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
     }
 
-    .sidebar-header h1 {
-      font-size: 16px;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--primary), var(--pink));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+    }
+
+    .brand-text {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff, var(--primary-glow));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+    }
+
+    .brand-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--primary-glow);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar-stats {
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-stats span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot-live {
+      width: 6px;
+      height: 6px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
 
     .session-list {
       flex: 1;
       overflow-y: auto;
-      padding: 12px;
+      padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
     }
 
     .session-card {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 14px;
+      background: rgba(17, 24, 39, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
     }
 
-    .session-card:hover, .session-card.active {
-      border-color: var(--accent-purple);
-      background: var(--bg-card-hover);
+    .session-card:hover {
+      border-color: rgba(99, 102, 241, 0.5);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
 
-    .session-badge {
-      display: inline-block;
+    .session-card.active {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.08);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+    }
+
+    .session-card.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, var(--primary), var(--pink));
+    }
+
+    .card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       font-size: 10px;
       font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
       text-transform: uppercase;
-      padding: 2px 8px;
-      border-radius: 12px;
-      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
     }
 
-    .badge-error { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
-    .badge-rejection { background: rgba(236, 72, 153, 0.2); color: var(--accent-pink); border: 1px solid var(--accent-pink); }
+    .badge-error { background: rgba(244, 63, 94, 0.15); color: var(--danger); border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-rejection { background: rgba(236, 72, 153, 0.15); color: var(--pink); border: 1px solid rgba(236, 72, 153, 0.3); }
 
-    .session-title {
+    .card-title {
       font-size: 13px;
       font-weight: 600;
-      margin-bottom: 4px;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      color: var(--text-main);
       word-break: break-word;
     }
 
-    .session-meta {
+    .card-meta {
       font-size: 11px;
       color: var(--text-muted);
-      display: flex;
-      justify-content: space-between;
-    }
-
-    /* Main Replayer Workspace */
-    .workspace {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: #090d16;
-    }
-
-    .player-header {
-      padding: 16px 24px;
-      background: var(--bg-card);
-      border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .error-info-box h2 {
-      font-size: 15px;
-      color: var(--accent-red);
-      font-family: 'Fira Code', monospace;
+    /* Main Workspace */
+    .workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: rgba(3, 7, 18, 0.85);
+      position: relative;
     }
 
-    .error-info-box p {
+    .player-header {
+      padding: 16px 28px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-info h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--danger);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+
+    .header-info p {
       font-size: 12px;
       color: var(--text-muted);
     }
 
-    .player-viewport-container {
+    .header-pills {
+      display: flex;
+      gap: 10px;
+    }
+
+    .pill {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+    }
+
+    /* Viewport Area */
+    .viewport-area {
       flex: 1;
       display: flex;
       justify-content: center;
       align-items: center;
       position: relative;
-      background: #020617;
+      background: radial-gradient(circle at center, rgba(17, 24, 39, 0.6) 0%, rgba(3, 7, 18, 0.95) 100%);
       overflow: hidden;
-      padding: 20px;
+      padding: 24px;
+    }
+
+    .browser-frame {
+      position: relative;
+      background: #111827;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(99, 102, 241, 0.15);
+      overflow: hidden;
+      max-width: 100%;
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .browser-bar {
+      height: 36px;
+      background: #1f2937;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .url-bar {
+      flex: 1;
+      margin: 0 16px;
+      background: #0b0f19;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid var(--border);
     }
 
     .iframe-wrapper {
       position: relative;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-      border-radius: 8px;
+      flex: 1;
       overflow: hidden;
       background: #fff;
-      max-width: 100%;
-      max-height: 100%;
     }
 
     iframe {
       border: none;
       width: 1000px;
-      height: 600px;
+      height: 580px;
       transform-origin: 0 0;
       pointer-events: none;
     }
 
-    /* Simulated Mouse Cursor & Click Ripple */
+    /* Simulated Mouse Cursor & Click Effect */
     .replayer-cursor {
       position: absolute;
-      width: 16px;
-      height: 16px;
-      background: var(--accent-pink);
-      border: 2px solid #fff;
+      width: 18px;
+      height: 18px;
+      background: var(--pink);
+      border: 2px solid #ffffff;
       border-radius: 50%;
       pointer-events: none;
       z-index: 999;
       transform: translate(-50%, -50%);
       display: none;
-      box-shadow: 0 0 12px var(--accent-pink);
+      box-shadow: 0 0 16px var(--pink), 0 0 30px var(--pink);
       transition: left 0.1s linear, top 0.1s linear;
     }
 
     .click-ripple {
       position: absolute;
-      width: 30px;
-      height: 30px;
-      border: 2px solid var(--accent-cyan);
+      width: 36px;
+      height: 36px;
+      border: 2px solid var(--cyan);
       border-radius: 50%;
       pointer-events: none;
       z-index: 998;
-      animation: ripple 0.6s ease-out forwards;
+      animation: ripple 0.6s cubic-bezier(0, 0.2, 0.8, 1) forwards;
     }
 
     @keyframes ripple {
-      0% { transform: scale(0.2); opacity: 1; }
-      100% { transform: scale(2); opacity: 0; }
+      0% { transform: scale(0.1); opacity: 1; box-shadow: 0 0 10px var(--cyan); }
+      100% { transform: scale(2.5); opacity: 0; }
     }
 
-    /* Controls Bar */
+    /* Player Controls Bar */
     .controls-bar {
-      background: var(--bg-card);
-      border-top: 1px solid var(--border-color);
-      padding: 12px 24px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      padding: 14px 28px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 20px;
     }
 
     .btn-play {
-      background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+      background: linear-gradient(135deg, var(--primary), var(--pink));
       border: none;
       color: #fff;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-weight: 600;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .btn-play:hover { opacity: 0.9; }
+    .btn-play:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
+    }
 
     .slider-container {
       flex: 1;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
 
     input[type="range"] {
       flex: 1;
       height: 6px;
       border-radius: 3px;
-      background: var(--border-color);
+      background: #1f2937;
       outline: none;
-      accent-color: var(--accent-purple);
+      accent-color: var(--primary-glow);
       cursor: pointer;
     }
 
     .time-badge {
-      font-family: 'Fira Code', monospace;
+      font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
+      font-weight: 600;
+      color: var(--primary-glow);
+      background: rgba(99, 102, 241, 0.1);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    .speed-buttons {
+      display: flex;
+      background: #0b0f19;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px;
+    }
+
+    .btn-speed {
+      background: none;
+      border: none;
       color: var(--text-muted);
-      min-width: 100px;
-    }
-
-    .speed-selector {
-      background: var(--bg-main);
-      color: var(--text-main);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      padding: 4px 8px;
-      font-size: 12px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
       cursor: pointer;
+      transition: all 0.15s;
     }
 
-    /* Bottom Inspector Tabs */
+    .btn-speed.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    /* Inspector Panel */
     .inspector-panel {
-      height: 220px;
-      background: var(--bg-card);
-      border-top: 1px solid var(--border-color);
+      height: 240px;
+      background: var(--bg-panel-solid);
+      border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
     }
 
     .tab-header {
       display: flex;
-      background: rgba(15, 23, 42, 0.4);
-      border-bottom: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.4);
+      border-bottom: 1px solid var(--border);
+      padding: 0 14px;
     }
 
     .tab-btn {
-      padding: 10px 20px;
-      font-size: 12px;
+      padding: 12px 20px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--text-muted);
       background: none;
       border: none;
       border-bottom: 2px solid transparent;
       cursor: pointer;
+      transition: all 0.2s;
     }
 
     .tab-btn.active {
-      color: var(--accent-purple);
-      border-bottom-color: var(--accent-purple);
-      background: rgba(129, 140, 248, 0.05);
+      color: var(--primary-glow);
+      border-bottom-color: var(--primary);
+      background: rgba(99, 102, 241, 0.08);
     }
 
     .tab-content {
       flex: 1;
       overflow-y: auto;
-      padding: 14px;
-      font-family: 'Fira Code', monospace;
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       display: none;
     }
@@ -302,9 +493,13 @@
     .tab-content.active { display: block; }
 
     .stacktrace-box {
-      color: #f87171;
+      color: #fca5a5;
+      background: #030712;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: 8px;
+      padding: 14px;
       white-space: pre-wrap;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     .network-table {
@@ -313,12 +508,12 @@
     }
 
     .network-table th, .network-table td {
-      padding: 6px 12px;
+      padding: 8px 12px;
       text-align: left;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border);
     }
 
-    .network-table th { color: var(--text-muted); font-size: 11px; }
+    .network-table th { color: var(--text-muted); font-size: 11px; text-transform: uppercase; }
 
     .method-badge {
       font-weight: 700;
@@ -327,8 +522,8 @@
       font-size: 10px;
     }
 
-    .method-GET { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
-    .method-POST { background: rgba(6, 182, 212, 0.2); color: var(--accent-cyan); }
+    .method-GET { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+    .method-POST { background: rgba(6, 182, 212, 0.2); color: var(--cyan); }
 
     .empty-state {
       display: flex;
@@ -337,7 +532,7 @@
       justify-content: center;
       height: 100%;
       color: var(--text-muted);
-      gap: 12px;
+      gap: 10px;
     }
   </style>
 </head>
@@ -345,18 +540,19 @@
 
   <!-- Sidebar -->
   <aside class="sidebar">
-    <div class="sidebar-header">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="5 3 19 12 5 21 5 3" fill="url(#grad1)"/>
-        <defs>
-          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#818cf8;" />
-            <stop offset="100%" style="stop-color:#ec4899;" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <h1>Error Replayer</h1>
+    <div class="brand-header">
+      <div class="brand-title">
+        <div class="brand-logo">⚡</div>
+        <span class="brand-text">TraceBuffer</span>
+      </div>
+      <span class="brand-badge">v1.0.0</span>
     </div>
+    
+    <div class="sidebar-stats">
+      <span><div class="dot-live"></div> Ingestion Active</span>
+      <span>10s Sliding Window</span>
+    </div>
+
     <div class="session-list" id="sessionList">
       <div class="empty-state">
         <p>Fetching error reports...</p>
@@ -364,45 +560,57 @@
     </div>
   </aside>
 
-  <!-- Workspace -->
+  <!-- Main Workspace -->
   <main class="workspace">
     <header class="player-header">
-      <div class="error-info-box">
-        <h2 id="errorTitle">Select a Session Report</h2>
+      <div class="header-info">
+        <h2 id="errorTitle">Select an Error Session Report</h2>
         <p id="errorSubtitle">Replays exact DOM changes, user events, and network requests leading to the error.</p>
       </div>
-      <div id="sessionMetaBadge" class="time-badge">--</div>
+      <div class="header-pills">
+        <div class="pill" id="sessionMetaBadge">ID: --</div>
+      </div>
     </header>
 
-    <!-- Viewport Container -->
-    <div class="player-viewport-container">
-      <div class="iframe-wrapper">
-        <iframe id="replayIframe" title="Session Replay Viewport"></iframe>
-        <div id="replayerCursor" class="replayer-cursor"></div>
+    <!-- Browser Viewport Container -->
+    <div class="viewport-area">
+      <div class="browser-frame">
+        <div class="browser-bar">
+          <div class="window-dots">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-yellow"></div>
+            <div class="dot dot-green"></div>
+          </div>
+          <div class="url-bar" id="browserUrl">https://tracebuffer.vercel.app/demo</div>
+        </div>
+        <div class="iframe-wrapper">
+          <iframe id="replayIframe" title="TraceBuffer Session Viewport"></iframe>
+          <div id="replayerCursor" class="replayer-cursor"></div>
+        </div>
       </div>
     </div>
 
     <!-- Controls -->
     <footer class="controls-bar">
-      <button class="btn-play" id="btnPlayPause">▶ Play</button>
+      <button class="btn-play" id="btnPlayPause">▶ Play Replay</button>
       <div class="slider-container">
         <input type="range" id="timelineSlider" min="0" max="1000" value="0">
         <span class="time-badge" id="timeDisplay">0.0s / 0.0s</span>
       </div>
-      <select class="speed-selector" id="speedSelect">
-        <option value="0.5">0.5x</option>
-        <option value="1" selected>1.0x</option>
-        <option value="2">2.0x</option>
-        <option value="4">4.0x</option>
-      </select>
+      <div class="speed-buttons">
+        <button class="btn-speed" onclick="setSpeed(0.5, this)">0.5x</button>
+        <button class="btn-speed active" onclick="setSpeed(1, this)">1.0x</button>
+        <button class="btn-speed" onclick="setSpeed(2, this)">2.0x</button>
+        <button class="btn-speed" onclick="setSpeed(4, this)">4.0x</button>
+      </div>
     </footer>
 
     <!-- Inspector Tabs -->
     <section class="inspector-panel">
       <nav class="tab-header">
-        <button class="tab-btn active" onclick="switchTab('tabError')">Stack Trace</button>
-        <button class="tab-btn" onclick="switchTab('tabNetwork')">Network Waterfall</button>
-        <button class="tab-btn" onclick="switchTab('tabEvents')">Event Feed</button>
+        <button class="tab-btn active" onclick="switchTab('tabError', this)">Stack Trace</button>
+        <button class="tab-btn" onclick="switchTab('tabNetwork', this)">Network Waterfall</button>
+        <button class="tab-btn" onclick="switchTab('tabEvents', this)">Event Feed</button>
       </nav>
 
       <div id="tabError" class="tab-content active">
@@ -447,7 +655,7 @@
       document.getElementById('btnPlayPause').addEventListener('click', () => {
         if (replayer.isPlaying) {
           replayer.pause();
-          document.getElementById('btnPlayPause').textContent = '▶ Play';
+          document.getElementById('btnPlayPause').textContent = '▶ Play Replay';
         } else {
           replayer.play();
           document.getElementById('btnPlayPause').textContent = '⏸ Pause';
@@ -458,12 +666,8 @@
         replayer.seek(Number(e.target.value));
       });
 
-      document.getElementById('speedSelect').addEventListener('change', (e) => {
-        replayer.setSpeed(Number(e.target.value));
-      });
-
       fetchReportsList();
-      setInterval(fetchReportsList, 5000); // Auto-refresh reports every 5s
+      setInterval(fetchReportsList, 5000);
     });
 
     async function fetchReportsList() {
@@ -472,22 +676,24 @@
         const reports = await res.json();
 
         const listEl = document.getElementById('sessionList');
-        if (reports.length === 0) {
+        if (!reports || reports.length === 0) {
           listEl.innerHTML = `
             <div class="empty-state">
               <p>No error reports yet.</p>
-              <small>Open <a href="/demo" target="_blank" style="color: var(--accent-purple);">/demo</a> to trigger errors!</small>
+              <small>Open <a href="/demo" target="_blank" style="color: var(--primary-glow);">/demo</a> to trigger errors!</small>
             </div>`;
           return;
         }
 
         listEl.innerHTML = reports.map(r => `
           <div class="session-card ${currentReport?.id === r.id ? 'active' : ''}" onclick="loadReport('${r.id}')">
-            <span class="session-badge badge-error">${r.error?.type || 'ERROR'}</span>
-            <div class="session-title">${escapeHTML(r.error?.message || 'Uncaught Error')}</div>
-            <div class="session-meta">
+            <span class="card-badge ${r.error?.type === 'unhandled_rejection' ? 'badge-rejection' : 'badge-error'}">
+              ${r.error?.type || 'ERROR'}
+            </span>
+            <div class="card-title">${escapeHTML(r.error?.message || 'Uncaught Error')}</div>
+            <div class="card-meta">
               <span>${new Date(r.timestamp).toLocaleTimeString()}</span>
-              <span>${r.eventCount} events</span>
+              <span>⚡ ${r.eventCount} events</span>
             </div>
           </div>
         `).join('');
@@ -504,11 +710,12 @@
         document.getElementById('errorTitle').textContent = currentReport.error?.message || 'Error Captured';
         document.getElementById('errorSubtitle').textContent = `URL: ${currentReport.url} | Viewport: ${currentReport.viewport?.width}x${currentReport.viewport?.height}`;
         document.getElementById('sessionMetaBadge').textContent = `ID: ${currentReport.id}`;
+        document.getElementById('browserUrl').textContent = currentReport.url || 'https://tracebuffer.vercel.app/demo';
 
-        // Render Stack Trace
+        // Stack Trace
         document.getElementById('stackTraceBox').textContent = currentReport.error?.stack || currentReport.error?.message || 'No stack trace available';
 
-        // Render Network Waterfall
+        // Network Waterfall
         const netEvents = (currentReport.events || []).filter(e => e.type === 'NETWORK');
         const netBody = document.getElementById('networkTableBody');
         if (netEvents.length > 0) {
@@ -516,7 +723,7 @@
             <tr>
               <td><span class="method-badge method-${e.data.method}">${e.data.method}</span></td>
               <td style="word-break: break-all;">${escapeHTML(e.data.url)}</td>
-              <td style="color: ${e.data.status >= 400 ? 'var(--accent-red)' : 'var(--accent-green)'}">${e.data.status}</td>
+              <td style="color: ${e.data.status >= 400 ? 'var(--danger)' : 'var(--success)'}">${e.data.status}</td>
               <td>${e.data.duration}ms</td>
             </tr>
           `).join('');
@@ -524,17 +731,17 @@
           netBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No network requests captured</td></tr>`;
         }
 
-        // Render Events Feed
+        // Event Feed
         const eventFeedBox = document.getElementById('eventFeedBox');
         eventFeedBox.innerHTML = (currentReport.events || []).map(e => `
-          <div style="padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <strong style="color: var(--accent-purple)">[${e.type}]</strong> ${JSON.stringify(e.data)}
+          <div style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <strong style="color: var(--primary-glow)">[${e.type}]</strong> ${JSON.stringify(e.data)}
           </div>
         `).join('');
 
         // Load into replayer
         replayer.loadPayload(currentReport);
-        document.getElementById('btnPlayPause').textContent = '▶ Play';
+        document.getElementById('btnPlayPause').textContent = '▶ Play Replay';
 
         fetchReportsList();
       } catch (err) {
@@ -542,11 +749,17 @@
       }
     }
 
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    function setSpeed(speed, btn) {
+      document.querySelectorAll('.btn-speed').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (replayer) replayer.setSpeed(speed);
+    }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       
-      event.currentTarget.classList.add('active');
+      btn.classList.add('active');
       document.getElementById(tabId).classList.add('active');
     }
 
