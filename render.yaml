@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: tracebuffer-server
+    env: node
+    buildCommand: npm install && cd sdk && npm run build
+    startCommand: node server/server.js
+    envVars:
+      - key: PORT
+        value: 3001

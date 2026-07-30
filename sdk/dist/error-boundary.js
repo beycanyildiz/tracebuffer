@@ -1,0 +1,95 @@
+import { serializeDOM } from './dom-serializer';
+export class ErrorBoundary {
+    constructor(buffer, config) {
+        this.isProcessing = false;
+        this.buffer = buffer;
+        this.config = config;
+    }
+    start() {
+        window.addEventListener('error', this.handleGlobalError.bind(this));
+        window.addEventListener('unhandledrejection', this.handleUnhandledRejection.bind(this));
+    }
+    stop() {
+        window.removeEventListener('error', this.handleGlobalError.bind(this));
+        window.removeEventListener('unhandledrejection', this.handleUnhandledRejection.bind(this));
+    }
+    captureError(error) {
+        const message = typeof error === 'string' ? error : error.message;
+        const stack = typeof error === 'string' ? undefined : error.stack;
+        this.processAndSendError({
+            message,
+            stack,
+            type: 'manual',
+        });
+    }
+    handleGlobalError(event) {
+        this.processAndSendError({
+            message: event.message || 'Uncaught Exception',
+            stack: event.error?.stack,
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno,
+            type: 'uncaught_exception',
+        });
+    }
+    handleUnhandledRejection(event) {
+        const reason = event.reason;
+        const message = reason instanceof Error ? reason.message : String(reason || 'Unhandled Promise Rejection');
+        const stack = reason instanceof Error ? reason.stack : undefined;
+        this.processAndSendError({
+            message,
+            stack,
+            type: 'unhandled_rejection',
+        });
+    }
+    async processAndSendError(errorData) {
+        // Prevent duplicate recursive crash reporting
+        if (this.isProcessing)
+            return;
+        this.isProcessing = true;
+        try {
+            const initialSnapshot = serializeDOM(document.documentElement);
+            const events = this.buffer.getEvents();
+            const payload = {
+                id: 'err_' + Math.random().toString(36).substr(2, 9),
+                timestamp: Date.now(),
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+                viewport: {
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                },
+                error: errorData,
+                initialSnapshot: typeof initialSnapshot === 'string' ? null : initialSnapshot,
+                events,
+            };
+            console.warn('[SessionTracker] Error captured! Transmitting replay payload...', payload);
+            await this.sendReport(payload);
+        }
+        catch (err) {
+            console.error('[SessionTracker] Failed to record error payload:', err);
+        }
+        finally {
+            this.isProcessing = false;
+        }
+    }
+    async sendReport(payload) {
+        const body = JSON.stringify(payload);
+        // Try navigator.sendBeacon first for non-blocking reliability
+        if (navigator.sendBeacon && this.config.endpoint) {
+            const sent = navigator.sendBeacon(this.config.endpoint, body);
+            if (sent)
+                return;
+        }
+        // Fallback to fetch
+        if (this.config.endpoint) {
+            await fetch(this.config.endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body,
+                keepalive: true,
+            });
+        }
+    }
+}
+//# sourceMappingURL=error-boundary.js.map

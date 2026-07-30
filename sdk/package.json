@@ -1,0 +1,40 @@
+{
+  "name": "tracebuffer",
+  "version": "1.0.0",
+  "description": "Zero-dependency 5KB Self-Hosted Real-Time Error Boundary & Session Replayer SDK",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "npx -p typescript tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "session-replayer",
+    "error-boundary",
+    "error-tracking",
+    "circular-buffer",
+    "mutation-observer",
+    "zero-dependency",
+    "self-hosted",
+    "sentry-alternative",
+    "logrocket-alternative"
+  ],
+  "author": "Beycan Yildiz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beycanyildiz/tracebuffer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/beycanyildiz/tracebuffer/issues"
+  },
+  "homepage": "https://github.com/beycanyildiz/tracebuffer#readme",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

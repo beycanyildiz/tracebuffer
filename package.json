@@ -1,0 +1,14 @@
+{
+  "name": "tracebuffer-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TraceBuffer Monorepo - Self-Hosted Real-Time Error Boundary & Session Replayer",
+  "scripts": {
+    "build:sdk": "cd sdk && npm run build",
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
+  "keywords": [],
+  "author": "Beycan Yildiz",
+  "license": "MIT"
+}
