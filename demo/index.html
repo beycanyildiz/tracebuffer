@@ -177,9 +177,7 @@
 
   <!-- Inline SDK Bundle for zero-config demonstration -->
   <script>
-    // Inline Bundled Session Tracker SDK
     (function() {
-      // 1. Types & Circular Buffer
       class CircularBuffer {
         constructor(maxCapacity = 1000, maxAgeMs = 10000) {
           this.buffer = [];
@@ -206,17 +204,19 @@
         }
       }
 
-      // 2. DOM Serializer
       let nodeIdCounter = 1;
       const nodeMap = new WeakMap();
       function getOrCreateNodeId(node) {
+        if (!node) return null;
         if (nodeMap.has(node)) return nodeMap.get(node);
         const id = nodeIdCounter++;
         nodeMap.set(node, id);
         if (node instanceof HTMLElement) node.setAttribute('data-sr-id', String(id));
         return id;
       }
+
       function serializeDOM(node = document.documentElement) {
+        if (!node) return '';
         const id = getOrCreateNodeId(node);
         if (node.nodeType === Node.TEXT_NODE) {
           const parent = node.parentElement;
@@ -246,13 +246,23 @@
 
         return { id, tagName, attributes, children };
       }
+
       function isMasked(el) {
+        if (!el || !(el instanceof HTMLElement)) return false;
         if (el.hasAttribute('data-mask')) return true;
         if (el.tagName === 'INPUT' && el.type.toLowerCase() === 'password') return true;
         return false;
       }
 
-      // 3. Trackers & Boundary
+      function getElementSelector(el) {
+        if (!el) return '';
+        if (el.id) return `#${el.id}`;
+        if (el.className && typeof el.className === 'string') {
+          return `${el.tagName.toLowerCase()}.${el.className.split(' ').join('.')}`;
+        }
+        return el.tagName.toLowerCase();
+      }
+
       class SDK {
         constructor(endpoint) {
           this.endpoint = endpoint;
@@ -260,6 +270,9 @@
           this.init();
         }
         init() {
+          // Pre-tag all existing DOM elements with data-sr-id
+          serializeDOM(document.documentElement);
+
           const emit = (type, data) => {
             this.buffer.push({
               id: Math.random().toString(36).substr(2, 9),
@@ -272,8 +285,24 @@
           // DOM Mutation Observer
           const observer = new MutationObserver(mutations => {
             mutations.forEach(m => {
-              const targetId = m.target.getAttribute?.('data-sr-id') || null;
-              if (m.type === 'attributes') {
+              const targetId = getOrCreateNodeId(m.target);
+              if (m.type === 'childList') {
+                const addedNodes = [];
+                m.addedNodes.forEach(node => {
+                  if (node instanceof HTMLElement) {
+                    addedNodes.push({ id: getOrCreateNodeId(node), html: node.outerHTML });
+                  }
+                });
+                const removedNodes = [];
+                m.removedNodes.forEach(node => {
+                  if (node instanceof HTMLElement) {
+                    removedNodes.push({ id: getOrCreateNodeId(node), tagName: node.tagName });
+                  }
+                });
+                if (addedNodes.length > 0 || removedNodes.length > 0) {
+                  emit('DOM_MUTATION', { mutationType: 'childList', targetId, addedNodes, removedNodes });
+                }
+              } else if (m.type === 'attributes') {
                 emit('DOM_MUTATION', {
                   mutationType: 'attributes',
                   targetId,
@@ -290,7 +319,14 @@
           // Event Listeners
           window.addEventListener('click', e => {
             if (!e.target) return;
-            emit('CLICK', { x: e.clientX, y: e.clientY, tagName: e.target.tagName });
+            const targetId = getOrCreateNodeId(e.target);
+            emit('CLICK', {
+              x: e.clientX,
+              y: e.clientY,
+              tagName: e.target.tagName,
+              targetId,
+              selector: getElementSelector(e.target)
+            });
           }, true);
 
           let lastMove = 0;
@@ -303,8 +339,13 @@
 
           window.addEventListener('input', e => {
             if (!e.target) return;
+            const targetId = getOrCreateNodeId(e.target);
             const val = isMasked(e.target) ? '***' : e.target.value;
-            emit('INPUT', { targetId: e.target.getAttribute('data-sr-id'), value: val });
+            emit('INPUT', {
+              targetId,
+              selector: getElementSelector(e.target),
+              value: val
+            });
           }, true);
 
           // Network Fetch Interceptor
@@ -344,7 +385,7 @@
             events: this.buffer.getEvents()
           };
 
-          console.warn('[SDK] Sending error report:', payload);
+          console.warn('[SDK] Transmitting payload:', payload);
           await fetch(this.endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

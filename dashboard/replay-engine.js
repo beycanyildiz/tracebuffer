@@ -28,10 +28,10 @@ class SessionReplayer {
     if (this.events.length > 0) {
       this.startTime = this.events[0].timestamp;
       this.duration = this.events[this.events.length - 1].timestamp - this.startTime;
-      if (this.duration === 0) this.duration = 1000;
+      if (this.duration <= 0) this.duration = 2000;
     } else {
       this.startTime = payload.timestamp;
-      this.duration = 1000;
+      this.duration = 2000;
     }
 
     if (this.progressSlider) {
@@ -167,10 +167,17 @@ class SessionReplayer {
         break;
 
       case 'INPUT':
-        if (event.data?.targetId) {
-          const el = doc.querySelector(`[data-sr-id="${event.data.targetId}"]`);
+        if (event.data) {
+          let el = null;
+          if (event.data.targetId) {
+            el = doc.querySelector(`[data-sr-id="${event.data.targetId}"]`);
+          }
+          if (!el && event.data.selector) {
+            el = doc.querySelector(event.data.selector);
+          }
           if (el) {
             el.value = event.data.value;
+            el.setAttribute('value', event.data.value);
           }
         }
         break;
@@ -190,7 +197,30 @@ class SessionReplayer {
   applyDomMutation(doc, data) {
     if (!data) return;
 
-    if (data.mutationType === 'attributes' && data.targetId && data.attributeName) {
+    if (data.mutationType === 'childList' && data.targetId) {
+      const parent = doc.querySelector(`[data-sr-id="${data.targetId}"]`);
+      if (parent) {
+        if (data.addedNodes) {
+          data.addedNodes.forEach(node => {
+            if (node.html) {
+              const div = doc.createElement('div');
+              div.innerHTML = node.html;
+              while (div.firstChild) {
+                parent.appendChild(div.firstChild);
+              }
+            }
+          });
+        }
+        if (data.removedNodes) {
+          data.removedNodes.forEach(node => {
+            if (node.id) {
+              const el = doc.querySelector(`[data-sr-id="${node.id}"]`);
+              if (el) el.remove();
+            }
+          });
+        }
+      }
+    } else if (data.mutationType === 'attributes' && data.targetId && data.attributeName) {
       const target = doc.querySelector(`[data-sr-id="${data.targetId}"]`);
       if (target) {
         if (data.newValue === null) {
@@ -227,7 +257,7 @@ class SessionReplayer {
   }
 
   escapeHTML(str) {
-    return str
+    return (str || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')

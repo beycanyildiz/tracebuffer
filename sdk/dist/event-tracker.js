@@ -1,4 +1,4 @@
-import { isMaskedElement } from './dom-serializer';
+import { isMaskedElement, getOrCreateNodeId } from './dom-serializer';
 export class EventTracker {
     constructor(onEvent) {
         this.listeners = [];
@@ -26,11 +26,12 @@ export class EventTracker {
         const target = e.target;
         if (!target)
             return;
+        const targetId = getOrCreateNodeId(target);
         this.emit('CLICK', {
             x: e.clientX,
             y: e.clientY,
             tagName: target.tagName,
-            targetId: target.getAttribute('data-sr-id') || null,
+            targetId,
             selector: this.getElementSelector(target),
         });
     }
@@ -38,9 +39,10 @@ export class EventTracker {
         const target = e.target;
         if (!target)
             return;
+        const targetId = getOrCreateNodeId(target);
         const value = isMaskedElement(target) ? '***' : target.value;
         this.emit('INPUT', {
-            targetId: target.getAttribute('data-sr-id') || null,
+            targetId,
             selector: this.getElementSelector(target),
             value,
         });
@@ -69,6 +71,8 @@ export class EventTracker {
         });
     }
     getElementSelector(el) {
+        if (!el)
+            return '';
         if (el.id)
             return `#${el.id}`;
         if (el.className && typeof el.className === 'string') {

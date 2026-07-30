@@ -1,5 +1,5 @@
 import { TrackerEvent } from './types';
-import { isMaskedElement } from './dom-serializer';
+import { isMaskedElement, getOrCreateNodeId } from './dom-serializer';
 
 export type EventCallback = (event: TrackerEvent) => void;
 
@@ -36,11 +36,13 @@ export class EventTracker {
     const target = e.target as HTMLElement;
     if (!target) return;
 
+    const targetId = getOrCreateNodeId(target);
+
     this.emit('CLICK', {
       x: (e as MouseEvent).clientX,
       y: (e as MouseEvent).clientY,
       tagName: target.tagName,
-      targetId: target.getAttribute('data-sr-id') || null,
+      targetId,
       selector: this.getElementSelector(target),
     });
   }
@@ -49,10 +51,11 @@ export class EventTracker {
     const target = e.target as HTMLInputElement;
     if (!target) return;
 
+    const targetId = getOrCreateNodeId(target);
     const value = isMaskedElement(target) ? '***' : target.value;
 
     this.emit('INPUT', {
-      targetId: target.getAttribute('data-sr-id') || null,
+      targetId,
       selector: this.getElementSelector(target),
       value,
     });
@@ -85,6 +88,7 @@ export class EventTracker {
   }
 
   private getElementSelector(el: HTMLElement): string {
+    if (!el) return '';
     if (el.id) return `#${el.id}`;
     if (el.className && typeof el.className === 'string') {
       return `${el.tagName.toLowerCase()}.${el.className.split(' ').join('.')}`;
