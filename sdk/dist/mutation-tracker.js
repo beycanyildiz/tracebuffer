@@ -1,3 +1,4 @@
+import { getOrCreateNodeId } from './dom-serializer';
 export class MutationTracker {
     constructor(onMutation) {
         this.observer = null;
@@ -8,19 +9,19 @@ export class MutationTracker {
             return;
         this.observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
-                const targetId = mutation.target.getAttribute?.('data-sr-id') || null;
+                const targetId = getOrCreateNodeId(mutation.target);
                 if (mutation.type === 'childList') {
                     const addedNodes = [];
                     mutation.addedNodes.forEach((node) => {
                         if (node instanceof HTMLElement) {
-                            const id = Number(node.getAttribute('data-sr-id') || 0);
+                            const id = getOrCreateNodeId(node);
                             addedNodes.push({ id, html: node.outerHTML });
                         }
                     });
                     const removedNodes = [];
                     mutation.removedNodes.forEach((node) => {
                         if (node instanceof HTMLElement) {
-                            const id = Number(node.getAttribute('data-sr-id') || 0);
+                            const id = getOrCreateNodeId(node);
                             removedNodes.push({ id, tagName: node.tagName });
                         }
                     });

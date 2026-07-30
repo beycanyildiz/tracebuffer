@@ -1,4 +1,5 @@
 import { TrackerEvent } from './types';
+import { getOrCreateNodeId } from './dom-serializer';
 
 export type MutationCallback = (event: TrackerEvent) => void;
 
@@ -15,13 +16,13 @@ export class MutationTracker {
 
     this.observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        const targetId = (mutation.target as HTMLElement).getAttribute?.('data-sr-id') || null;
+        const targetId = getOrCreateNodeId(mutation.target);
 
         if (mutation.type === 'childList') {
           const addedNodes: Array<{ id: number; html: string }> = [];
           mutation.addedNodes.forEach((node) => {
             if (node instanceof HTMLElement) {
-              const id = Number(node.getAttribute('data-sr-id') || 0);
+              const id = getOrCreateNodeId(node)!;
               addedNodes.push({ id, html: node.outerHTML });
             }
           });
@@ -29,7 +30,7 @@ export class MutationTracker {
           const removedNodes: Array<{ id: number; tagName: string }> = [];
           mutation.removedNodes.forEach((node) => {
             if (node instanceof HTMLElement) {
-              const id = Number(node.getAttribute('data-sr-id') || 0);
+              const id = getOrCreateNodeId(node)!;
               removedNodes.push({ id, tagName: node.tagName });
             }
           });

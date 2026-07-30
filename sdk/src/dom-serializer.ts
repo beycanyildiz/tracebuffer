@@ -3,7 +3,8 @@ import { VNode } from './types';
 let nodeIdCounter = 1;
 const nodeMap = new WeakMap<Node, number>();
 
-export function getOrCreateNodeId(node: Node): number {
+export function getOrCreateNodeId(node: Node | null): number | null {
+  if (!node) return null;
   if (nodeMap.has(node)) {
     return nodeMap.get(node)!;
   }
@@ -20,7 +21,8 @@ export function getNodeById(id: number): Node | null {
 }
 
 export function serializeDOM(node: Node = document.documentElement): VNode | string {
-  const id = getOrCreateNodeId(node);
+  if (!node) return '';
+  const id = getOrCreateNodeId(node)!;
 
   if (node.nodeType === Node.TEXT_NODE) {
     const textContent = node.textContent || '';
@@ -56,6 +58,12 @@ export function serializeDOM(node: Node = document.documentElement): VNode | str
     }
   }
 
+  // Ensure dynamic input values are captured in snapshot
+  if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') {
+    const val = (element as HTMLInputElement).value;
+    attributes['value'] = isMaskedElement(element) ? '***' : val;
+  }
+
   const children: (VNode | string)[] = [];
   element.childNodes.forEach((child) => {
     const serializedChild = serializeDOM(child);
@@ -72,7 +80,8 @@ export function serializeDOM(node: Node = document.documentElement): VNode | str
   };
 }
 
-export function isMaskedElement(element: HTMLElement): boolean {
+export function isMaskedElement(element: HTMLElement | null): boolean {
+  if (!element || !(element instanceof HTMLElement)) return false;
   if (element.hasAttribute('data-mask')) return true;
   if (element.tagName === 'INPUT') {
     const type = (element as HTMLInputElement).type.toLowerCase();

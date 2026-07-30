@@ -10,6 +10,15 @@
 
 ---
 
+## 🌐 Live Interactive Demos
+
+Experience TraceBuffer running live on Vercel:
+
+- 📊 **Replayer Dashboard**: [https://tracebuffer.vercel.app/dashboard](https://tracebuffer.vercel.app/dashboard)
+- 🧪 **Interactive Demo App**: [https://tracebuffer.vercel.app/demo](https://tracebuffer.vercel.app/demo)
+
+---
+
 ## 📌 Overview
 
 **TraceBuffer** is a lightweight, high-performance browser error tracking and session replay engine engineered from first principles.
@@ -114,7 +123,7 @@ sequenceDiagram
 Add this single line to your HTML `<head>` or `<body>`:
 
 ```html
-<script src="http://localhost:3001/sdk/dist/index.js" data-endpoint="http://localhost:3001/api/reports"></script>
+<script src="https://tracebuffer.vercel.app/sdk/dist/index.js" data-endpoint="https://tracebuffer.vercel.app/api/reports"></script>
 ```
 
 ### Option 2: NPM Package
@@ -131,7 +140,7 @@ Initialize in your frontend application entry point (`index.ts` / `App.tsx`):
 import { SessionTracker } from 'tracebuffer';
 
 SessionTracker.init({
-  endpoint: 'https://your-domain.com/api/reports',
+  endpoint: 'https://tracebuffer.vercel.app/api/reports',
   maxBufferAgeMs: 10000, // Keep last 10 seconds
   maskAllInputs: false,  // Auto-mask passwords and data-mask elements
   collectNetwork: true,  // Monitor fetch and XHR calls
@@ -167,6 +176,8 @@ tracebuffer/
 │   └── tsconfig.json
 ├── server/             # Node.js Ingestion & Static File API Server
 │   └── server.js
+├── api/                # Vercel Serverless API Route
+│   └── index.js
 ├── dashboard/          # Sandboxed Session Replayer Web Application
 │   ├── index.html
 │   └── replay-engine.js

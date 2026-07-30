@@ -3,6 +3,7 @@ import { MutationTracker } from './mutation-tracker';
 import { EventTracker } from './event-tracker';
 import { NetworkTracker } from './network-tracker';
 import { ErrorBoundary } from './error-boundary';
+import { serializeDOM } from './dom-serializer';
 export class SessionTracker {
     constructor(config) {
         this.config = {
@@ -30,6 +31,9 @@ export class SessionTracker {
         return SessionTracker.instance;
     }
     start() {
+        if (typeof document !== 'undefined') {
+            serializeDOM(document.documentElement);
+        }
         this.mutationTracker.start();
         this.eventTracker.start();
         if (this.config.collectNetwork) {

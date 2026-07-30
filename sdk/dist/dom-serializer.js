@@ -1,6 +1,8 @@
 let nodeIdCounter = 1;
 const nodeMap = new WeakMap();
 export function getOrCreateNodeId(node) {
+    if (!node)
+        return null;
     if (nodeMap.has(node)) {
         return nodeMap.get(node);
     }
@@ -15,6 +17,8 @@ export function getNodeById(id) {
     return document.querySelector(`[data-sr-id="${id}"]`);
 }
 export function serializeDOM(node = document.documentElement) {
+    if (!node)
+        return '';
     const id = getOrCreateNodeId(node);
     if (node.nodeType === Node.TEXT_NODE) {
         const textContent = node.textContent || '';
@@ -46,6 +50,11 @@ export function serializeDOM(node = document.documentElement) {
             attributes[attr.name] = attr.value;
         }
     }
+    // Ensure dynamic input values are captured in snapshot
+    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') {
+        const val = element.value;
+        attributes['value'] = isMaskedElement(element) ? '***' : val;
+    }
     const children = [];
     element.childNodes.forEach((child) => {
         const serializedChild = serializeDOM(child);
@@ -61,6 +70,8 @@ export function serializeDOM(node = document.documentElement) {
     };
 }
 export function isMaskedElement(element) {
+    if (!element || !(element instanceof HTMLElement))
+        return false;
     if (element.hasAttribute('data-mask'))
         return true;
     if (element.tagName === 'INPUT') {
